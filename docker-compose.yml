@@ -1,0 +1,73 @@
+version: "3.7"
+
+services:
+    # PHP-FPM - Service
+    bad_app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+
+        container_name: bad_app
+        restart: unless-stopped
+        tty: true
+        working_dir: /var/www
+        volumes:
+            - ./:/var/www
+            - ./docker-files/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+
+        networks:
+            - bad_app-network
+
+    # NGINX - Service
+    bad_webserver:
+        image: nginx:alpine
+        container_name: bad_webserver
+        restart: unless-stopped
+        tty: true
+        ports:
+            - "3005:80"
+            - "3006:443"
+        volumes:
+            - ./:/var/www
+            - ./docker-files/nginx/conf.d/:/etc/nginx/conf.d/
+        networks:
+            - bad_app-network
+    # MariaDB - Service
+    bad_db:
+        image: mysql:5.7
+        container_name: bad_db
+        restart: unless-stopped
+        tty: true
+
+        ports:
+            - "3007:3306"
+
+        environment:
+            MYSQL_DATABASE: "bad_db"
+            MYSQL_ROOT_PASSWORD: "bad"
+            MYSQL_PASSWORD: "bad"
+            MYSQL_USER: "bad"
+        volumes:
+            - ./docker-files/mysql:/var/lib/mysql
+        networks:
+            - bad_app-network
+
+    bad_phpmyadmin:
+        container_name: bad_phpmyadmin
+        depends_on:
+            - bad_db
+        image: phpmyadmin/phpmyadmin
+        restart: always
+        ports:
+            - "3008:80"
+        environment:
+            PMA_HOST: bad_db
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_USER: ${DB_USERNAME}
+        networks:
+            - bad_app-network
+# Networks
+networks:
+    bad_app-network:
+        driver: bridge
